@@ -24,24 +24,33 @@ $app->post('/callback', function (Request $request) use ($app) {
 
     $events = $bot->parseEventRequest($body, $signature);
 
+    $delete = function ($key, $value) use ($redis) {
+        $redis->lrem($key, 0, $value);
+    };
+
+    $save = function ($key, $value) use ($redis, $delete) {
+        $delete($key, $value);
+        $redis->rpush($key, $value);
+    };
+
     // store target (group|room|user)s on redis.
     foreach ($events as $event) {
         if ($event instanceof JoinEvent) {
             if ($event->isGroupEvent()) {
-                $redis->rpush('groups', $event->getGroupId());
+                $save('groups', $event->getGroupId());
             } else {
-                $redis->rpush('rooms', $event->getRoomId());
+                $save('rooms', $event->getRoomId());
             }
         } elseif ($event instanceof FollowEvent) {
-            $redis->rpush('users', $event->getUserId());
+            $save('users', $event->getUserId());
         } elseif ($event instanceof LeaveEvent) {
             if ($event->isGroupEvent()) {
-                $redis->lrem('groups', 0, $event->getGroupId());
+                $delete('groups', $event->getGroupId());
             } else {
-                $redis->lrem('rooms', 0, $event->getRoomId());
+                $delete('rooms', $event->getRoomId());
             }
         } elseif ($event instanceof UnfollowEvent) {
-            $redis->lrem('users', 0, $event->getUserId());
+            $delete('users', $event->getUserId());
         }
     }
 
