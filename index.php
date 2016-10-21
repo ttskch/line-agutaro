@@ -24,8 +24,6 @@ $app->post('/callback', function (Request $request) use ($app) {
 
     $events = $bot->parseEventRequest($body, $signature);
 
-    error_log(json_encode($events));
-
     // store target (group|room|user)s on redis.
     foreach ($events as $event) {
         if ($event instanceof JoinEvent) {
